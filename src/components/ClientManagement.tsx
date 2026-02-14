@@ -11,13 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Users, Plus, TrendingUp, Eye, Trash2, Edit, BarChart3, PieChart, 
-  ArrowLeft, Clock, Search, FileText, Calendar, DollarSign, 
+  Clock, Search, FileText, Calendar, DollarSign, 
   Building, Mail, Phone, MapPin, Star, Trophy, ArrowUpRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PieChart as RechartsPieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend, AreaChart, Area } from 'recharts';
-import { Link, useNavigate } from 'react-router-dom';
-import { safeParseJSON, generateSecureId, getSavedInvoices, type SavedInvoice } from '@/lib/safeStorage';
+import { useNavigate } from 'react-router-dom';
+import { safeParseJSON, generateSecureId, getSavedInvoices, saveInvoices, type SavedInvoice } from '@/lib/safeStorage';
 import { t, getLanguage } from '@/lib/i18n';
 import { z } from 'zod';
 import LanguageSelector from './LanguageSelector';
@@ -118,6 +118,15 @@ const ClientManagement = () => {
   // Load invoices
   useEffect(() => {
     setInvoices(getSavedInvoices());
+
+    const refreshInvoices = () => setInvoices(getSavedInvoices());
+    window.addEventListener('savedInvoicesUpdated', refreshInvoices);
+    window.addEventListener('storage', refreshInvoices);
+
+    return () => {
+      window.removeEventListener('savedInvoicesUpdated', refreshInvoices);
+      window.removeEventListener('storage', refreshInvoices);
+    };
   }, []);
 
   // Save to localStorage whenever clients change
@@ -140,9 +149,42 @@ const ClientManagement = () => {
     );
   };
 
+  const getInvoicePaidAmount = (invoice: SavedInvoice): number => {
+    const rawPaid = Number(invoice.paidAmount || 0);
+    const clampedPaid = Math.max(0, Math.min(rawPaid, Number(invoice.total || 0)));
+    return Number.isFinite(clampedPaid) ? clampedPaid : 0;
+  };
+
+  const getInvoiceRemainingAmount = (invoice: SavedInvoice): number => {
+    return Math.max(0, Number(invoice.total || 0) - getInvoicePaidAmount(invoice));
+  };
+
+  const updateInvoicePaidAmount = (invoiceId: string, paidAmount: number) => {
+    const nextPaid = Number.isFinite(paidAmount) ? paidAmount : 0;
+    const updatedInvoices = invoices.map((invoice) => {
+      if (invoice.id !== invoiceId) return invoice;
+      const clampedPaid = Math.max(0, Math.min(nextPaid, Number(invoice.total || 0)));
+      return {
+        ...invoice,
+        paidAmount: clampedPaid,
+      };
+    });
+
+    setInvoices(updatedInvoices);
+    saveInvoices(updatedInvoices);
+  };
+
   // Calculate revenue from invoices for a client
   const getClientInvoiceRevenue = (client: Client): number => {
     return getClientInvoices(client).reduce((sum, inv) => sum + (inv.total || 0), 0);
+  };
+
+  const getClientInvoicePaid = (client: Client): number => {
+    return getClientInvoices(client).reduce((sum, inv) => sum + getInvoicePaidAmount(inv), 0);
+  };
+
+  const getClientInvoiceRemaining = (client: Client): number => {
+    return getClientInvoices(client).reduce((sum, inv) => sum + getInvoiceRemainingAmount(inv), 0);
   };
 
   const addClient = () => {
@@ -272,19 +314,22 @@ const ClientManagement = () => {
   };
 
   // Stats calculations
-  const calculateTotalRevenue = () => {
-    const projectRevenue = clients.reduce((total, client) => total + client.totalRevenue, 0);
-    const invoiceRevenue = invoices.reduce((total, inv) => total + (inv.total || 0), 0);
-    return Math.max(projectRevenue, invoiceRevenue);
+  const calculateTotalInvoiced = () => {
+    return invoices.reduce((total, invoice) => total + Number(invoice.total || 0), 0);
   };
 
-  const calculatePendingRevenue = () => {
-    return clients.reduce((total, client) => {
-      const pending = client.projects.reduce((sum, project) => {
-        return sum + (project.price - project.paidAmount);
-      }, 0);
-      return total + pending;
-    }, 0);
+  const calculateTotalPaid = () => {
+    return invoices.reduce((total, invoice) => total + getInvoicePaidAmount(invoice), 0);
+  };
+
+  const calculateTotalRemaining = () => {
+    return invoices.reduce((total, invoice) => total + getInvoiceRemainingAmount(invoice), 0);
+  };
+
+  const calculateCollectionRate = () => {
+    const totalInvoiced = calculateTotalInvoiced();
+    if (totalInvoiced <= 0) return 0;
+    return (calculateTotalPaid() / totalInvoiced) * 100;
   };
 
   const getStatusColor = (status: Project['status']) => {
@@ -310,7 +355,9 @@ const ClientManagement = () => {
     return [...clients]
       .map(client => ({
         ...client,
-        combinedRevenue: client.totalRevenue + getClientInvoiceRevenue(client)
+        combinedRevenue: getClientInvoiceRevenue(client),
+        paidRevenue: getClientInvoicePaid(client),
+        remainingRevenue: getClientInvoiceRemaining(client),
       }))
       .sort((a, b) => b.combinedRevenue - a.combinedRevenue)
       .slice(0, 5);
@@ -320,8 +367,9 @@ const ClientManagement = () => {
   const getRevenueChartData = () => {
     return clients.slice(0, 8).map(client => ({
       name: client.name.split(' ')[0],
-      revenue: client.totalRevenue + getClientInvoiceRevenue(client),
-      pending: client.projects.reduce((sum, p) => sum + (p.price - p.paidAmount), 0)
+      invoiced: getClientInvoiceRevenue(client),
+      paid: getClientInvoicePaid(client),
+      remaining: getClientInvoiceRemaining(client),
     }));
   };
 
@@ -375,24 +423,13 @@ const ClientManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/">
-                <Button variant="outline" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  {t('back')}
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{t('clientManagement')}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {clients.length} {t('clients').toLowerCase()}
-                </p>
-              </div>
+    <div className="space-y-8">
+      <Card className="app-surface">
+        <CardContent className="p-4 lg:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">{t('clientManagement')}</h2>
+              <p className="text-sm text-muted-foreground">{clients.length} {t('clients').toLowerCase()}</p>
             </div>
             <div className="flex items-center gap-2">
               <LanguageSelector />
@@ -463,35 +500,35 @@ const ClientManagement = () => {
               </Dialog>
             </div>
           </div>
-        </div>
-      </header>
+        </CardContent>
+      </Card>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <div className="space-y-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/50 to-transparent dark:from-green-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{t('totalRevenue')}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{lang === 'fr' ? 'Total facturé' : 'Total Invoiced'}</CardTitle>
               <TrendingUp className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-                {calculateTotalRevenue().toFixed(0)} DZD
+                {calculateTotalInvoiced().toFixed(0)} DZD
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{t('allTimeEarnings')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{lang === 'fr' ? 'Montant total des factures' : 'Total amount billed'}</p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-orange-500 bg-gradient-to-r from-orange-50/50 to-transparent dark:from-orange-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{t('pendingRevenue')}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{lang === 'fr' ? 'Total payé' : 'Total Paid'}</CardTitle>
               <Clock className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">
-                {calculatePendingRevenue().toFixed(0)} DZD
+                {calculateTotalPaid().toFixed(0)} DZD
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{t('awaitingPayment')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{lang === 'fr' ? 'Encaissements clients' : 'Collected from clients'}</p>
             </CardContent>
           </Card>
 
@@ -508,12 +545,12 @@ const ClientManagement = () => {
 
           <Card className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50/50 to-transparent dark:from-purple-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{t('invoices')}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{lang === 'fr' ? 'Reste à payer' : 'Remaining Due'}</CardTitle>
               <FileText className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">{invoices.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">{lang === 'fr' ? 'Total factures' : 'Total invoices'}</p>
+              <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">{calculateTotalRemaining().toFixed(0)} DZD</div>
+              <p className="text-xs text-muted-foreground mt-1">{lang === 'fr' ? `Taux de recouvrement ${calculateCollectionRate().toFixed(1)}%` : `Collection rate ${calculateCollectionRate().toFixed(1)}%`}</p>
             </CardContent>
           </Card>
         </div>
@@ -621,8 +658,9 @@ const ClientManagement = () => {
                       borderRadius: '8px'
                     }} 
                   />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" name={t('totalRevenue')} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="pending" fill="#f59e0b" name={t('pendingRevenue')} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="invoiced" fill="hsl(var(--primary))" name={lang === 'fr' ? 'Facturé' : 'Invoiced'} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="paid" fill="#10b981" name={lang === 'fr' ? 'Payé' : 'Paid'} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="remaining" fill="#f59e0b" name={lang === 'fr' ? 'Reste' : 'Remaining'} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -696,6 +734,8 @@ const ClientManagement = () => {
                       {filteredClients.map((client) => {
                         const clientInvoices = getClientInvoices(client);
                         const invoiceRevenue = getClientInvoiceRevenue(client);
+                        const paidRevenue = getClientInvoicePaid(client);
+                        const remainingRevenue = getClientInvoiceRemaining(client);
                         const isSelected = selectedClient?.id === client.id;
                         
                         return (
@@ -731,9 +771,11 @@ const ClientManagement = () => {
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-primary">
-                                  {(client.totalRevenue + invoiceRevenue).toFixed(0)} DZD
+                                  {invoiceRevenue.toFixed(0)} DZD
                                 </p>
-                                <p className="text-xs text-muted-foreground">{t('totalRevenue')}</p>
+                                <p className="text-xs text-muted-foreground">{lang === 'fr' ? 'Facturé' : 'Invoiced'}</p>
+                                <p className="text-xs text-emerald-600">{lang === 'fr' ? 'Payé' : 'Paid'}: {paidRevenue.toFixed(0)} DZD</p>
+                                <p className="text-xs text-amber-600">{lang === 'fr' ? 'Reste' : 'Remaining'}: {remainingRevenue.toFixed(0)} DZD</p>
                               </div>
                             </div>
                             
@@ -834,14 +876,29 @@ const ClientManagement = () => {
                     {/* Client Stats */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-xl border border-green-200 dark:border-green-800">
-                        <p className="text-xs text-green-600 dark:text-green-400 mb-1">{t('totalRevenue')}</p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mb-1">{lang === 'fr' ? 'Total facturé' : 'Total Invoiced'}</p>
                         <p className="text-xl font-bold text-green-700 dark:text-green-300">
-                          {(selectedClient.totalRevenue + getClientInvoiceRevenue(selectedClient)).toFixed(0)} DZD
+                          {getClientInvoiceRevenue(selectedClient).toFixed(0)} DZD
                         </p>
                       </div>
                       <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">{t('invoices')}</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">{lang === 'fr' ? 'Total payé' : 'Total Paid'}</p>
                         <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                          {getClientInvoicePaid(selectedClient).toFixed(0)} DZD
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800">
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">{lang === 'fr' ? 'Reste à payer' : 'Remaining Due'}</p>
+                        <p className="text-xl font-bold text-amber-700 dark:text-amber-300">
+                          {getClientInvoiceRemaining(selectedClient).toFixed(0)} DZD
+                        </p>
+                      </div>
+                      <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800">
+                        <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">{t('invoices')}</p>
+                        <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
                           {getClientInvoices(selectedClient).length}
                         </p>
                       </div>
@@ -856,14 +913,36 @@ const ClientManagement = () => {
                         </h4>
                         <div className="space-y-2">
                           {getClientInvoices(selectedClient).slice(0, 5).map((inv) => (
-                            <div key={inv.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                              <div>
-                                <p className="font-mono text-sm font-medium">{inv.invoiceNumber}</p>
-                                <p className="text-xs text-muted-foreground">{inv.projectName || '-'}</p>
+                            <div key={inv.id} className="p-3 bg-muted/30 rounded-lg space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-mono text-sm font-medium">{inv.invoiceNumber}</p>
+                                  <p className="text-xs text-muted-foreground">{inv.projectName || '-'}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-primary">{inv.total?.toFixed(0)} DZD</p>
+                                  <p className="text-xs text-muted-foreground">{inv.invoiceDate}</p>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-primary">{inv.total?.toFixed(0)} DZD</p>
-                                <p className="text-xs text-muted-foreground">{inv.invoiceDate}</p>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                                <div>
+                                  <Label className="text-xs">{lang === 'fr' ? 'Montant payé' : 'Paid amount'}</Label>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={Number(inv.total || 0)}
+                                    value={getInvoicePaidAmount(inv)}
+                                    onChange={(e) => updateInvoicePaidAmount(inv.id, parseFloat(e.target.value) || 0)}
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="text-xs text-emerald-700 dark:text-emerald-300">
+                                  {lang === 'fr' ? 'Facturé' : 'Invoiced'}: {Number(inv.total || 0).toFixed(0)} DZD
+                                </div>
+                                <div className="text-xs text-amber-700 dark:text-amber-300">
+                                  {lang === 'fr' ? 'Reste' : 'Remaining'}: {getInvoiceRemainingAmount(inv).toFixed(0)} DZD
+                                </div>
                               </div>
                             </div>
                           ))}

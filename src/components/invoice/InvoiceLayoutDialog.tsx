@@ -20,6 +20,8 @@ import {
   saveInvoiceLayout,
   getDefaultLabel,
   type InvoiceLayout,
+  type HeaderLayout,
+  type PartiesLayout,
   type MetaField,
   type SectionOrder,
 } from '@/lib/invoiceLayout';
@@ -75,29 +77,29 @@ const InvoiceLayoutDialog: React.FC<InvoiceLayoutDialogProps> = ({ onLayoutChang
     setOpen(false);
   };
 
-  const updateHeader = (field: string, value: any) => {
+  const updateHeader = <K extends keyof HeaderLayout>(field: K, value: HeaderLayout[K]) => {
     setLayout(prev => ({ ...prev, header: { ...prev.header, [field]: value } }));
   };
 
-  const updateParties = (field: string, value: any) => {
+  const updateParties = <K extends keyof PartiesLayout>(field: K, value: PartiesLayout[K]) => {
     setLayout(prev => ({ ...prev, parties: { ...prev.parties, [field]: value } }));
   };
 
-  const updateMetaField = (id: string, field: string, value: any) => {
+  const updateMetaField = <K extends keyof MetaField>(id: string, field: K, value: MetaField[K]) => {
     setLayout(prev => ({
       ...prev,
       metaFields: prev.metaFields.map(f => f.id === id ? { ...f, [field]: value } : f),
     }));
   };
 
-  const updateSection = (id: string, field: string, value: any) => {
+  const updateSection = <K extends keyof SectionOrder>(id: string, field: K, value: SectionOrder[K]) => {
     setLayout(prev => ({
       ...prev,
       sections: prev.sections.map(s => s.id === id ? { ...s, [field]: value } : s),
     }));
   };
 
-  const moveItem = (list: any[], index: number, direction: 'up' | 'down') => {
+  const moveItem = <T extends { order: number }>(list: T[], index: number, direction: 'up' | 'down'): T[] => {
     const newList = [...list];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= newList.length) return newList;

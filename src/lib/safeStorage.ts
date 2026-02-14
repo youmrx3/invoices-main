@@ -21,6 +21,7 @@ const SavedInvoiceSchema = z.object({
   id: z.string(),
   createdAt: z.string(),
   total: z.number(),
+  paidAmount: z.number().default(0),
   invoiceNumber: z.string(),
   clientName: z.string(),
   projectName: z.string(),
@@ -39,6 +40,26 @@ const SavedInvoiceSchema = z.object({
   taxRate: z.number().default(0),
   documentType: z.string().optional(),
   calculationLines: z.array(CalculationLineSchema).optional(),
+  // Business fiscal information
+  designerNif: z.string().default(''),
+  designerNic: z.string().default(''),
+  designerAit: z.string().default(''),
+  designerRc: z.string().default(''),
+  designerArtisan: z.string().default(''),
+  designerActivity: z.string().default(''),
+  designerCustomFiscalValues: z.record(z.string()).default({}),
+  // Client fiscal information
+  clientNif: z.string().default(''),
+  clientNic: z.string().default(''),
+  clientAit: z.string().default(''),
+  clientRc: z.string().default(''),
+  clientArtisan: z.string().default(''),
+  clientActivity: z.string().default(''),
+  clientCustomFiscalValues: z.record(z.string()).default({}),
+  endingPriceNumber: z.string().default(''),
+  endingPriceText: z.string().default(''),
+  endingPriceTextFrench: z.boolean().default(true),
+  endingChoiceId: z.string().default(''),
 });
 
 const ClientSchema = z.object({
@@ -50,6 +71,13 @@ const ClientSchema = z.object({
   address: z.string().default(''),
   notes: z.string().default(''),
   createdAt: z.string().optional(),
+  // Fiscal information
+  nif: z.string().default(''), // Tax ID
+  nic: z.string().default(''), // National ID
+  ait: z.string().default(''), // Professional Tax
+  rc: z.string().default(''),  // Commercial Register
+  artisan: z.string().default(''), // Artisan Number
+  activity: z.string().default(''), // Activity/Industry
 });
 
 export type SavedInvoice = z.infer<typeof SavedInvoiceSchema>;
@@ -114,6 +142,7 @@ export function saveInvoices(invoices: SavedInvoice[]): boolean {
     
     if (result.success) {
       localStorage.setItem('savedInvoices', JSON.stringify(result.data));
+      window.dispatchEvent(new CustomEvent('savedInvoicesUpdated'));
       return true;
     } else {
       console.error('Invoice validation failed before save:', result.error.message);

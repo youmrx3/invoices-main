@@ -1,11 +1,15 @@
 
 import ClientManagement from '@/components/ClientManagement';
+import WorkspaceShell from '@/components/layout/WorkspaceShell';
 
 const ClientManagementPage = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <WorkspaceShell
+      title="Client Management"
+      subtitle="Track customers, payments, remaining balances, and portfolio performance"
+    >
       <ClientManagement />
-    </div>
+    </WorkspaceShell>
   );
 };
 

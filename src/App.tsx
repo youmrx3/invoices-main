@@ -9,6 +9,7 @@ import { getBusinessSettings } from "@/lib/businessSettings";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ClientManagementPage from "./pages/ClientManagement";
+import DocumentTypeSettingsPage from "./pages/DocumentTypeSettings";
 import SharedInvoiceView from "./components/SharedInvoiceView";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/clients" element={<ClientManagementPage />} />
             <Route path="/invoice" element={<SharedInvoiceView />} />
+            <Route path="/settings" element={<DocumentTypeSettingsPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

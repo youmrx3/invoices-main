@@ -186,19 +186,6 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
           <p className="font-medium text-sm truncate">{invoiceData.projectName || '-'}</p>
         </div>
       </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase">Project</p>
-          <p className="font-medium text-sm truncate">{invoiceData.projectName || '-'}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase">Date</p>
-          <p className="font-medium text-sm">{invoiceData.invoiceDate}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase">Due</p>
-          <p className="font-medium text-sm">{invoiceData.dueDate || 'On Receipt'}</p>
-        </div>
-      </div>
 
       {/* Services Table */}
       <div className="mb-6">
@@ -278,7 +265,7 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
           <p className="text-sm text-muted-foreground">{settings.footerText}</p>
         </div>
       )}
-      </div>
+    </div>
     </>
   );
 };

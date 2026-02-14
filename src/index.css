@@ -6,35 +6,35 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 222 33% 98%;
+    --foreground: 224 28% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 224 28% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 224 28% 12%;
 
-    --primary: 221 83% 53%;
+    --primary: 230 86% 60%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 225 33% 95%;
+    --secondary-foreground: 224 28% 16%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 225 30% 95%;
+    --muted-foreground: 224 14% 44%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 227 48% 94%;
+    --accent-foreground: 224 28% 16%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
+    --border: 224 24% 88%;
+    --input: 224 24% 88%;
+    --ring: 230 86% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.9rem;
 
     /* Custom section colors */
     --section-client: 221 83% 53%;
@@ -59,33 +59,33 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 228 28% 8%;
+    --foreground: 220 22% 94%;
 
-    --card: 222.2 84% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 228 24% 12%;
+    --card-foreground: 220 22% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 228 24% 12%;
+    --popover-foreground: 220 22% 94%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 226 100% 71%;
+    --primary-foreground: 228 28% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 228 17% 19%;
+    --secondary-foreground: 220 22% 94%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 228 17% 19%;
+    --muted-foreground: 220 12% 68%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 228 16% 21%;
+    --accent-foreground: 220 22% 94%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 72% 44%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 228 14% 24%;
+    --input: 228 14% 24%;
+    --ring: 226 100% 71%;
 
     /* Custom section colors (dark) */
     --section-client: 217 91% 60%;
@@ -116,7 +116,53 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at 0% 0%, hsl(var(--primary) / 0.10), transparent 42%),
+      radial-gradient(circle at 100% 0%, hsl(var(--accent) / 0.35), transparent 36%);
+    min-height: 100vh;
+    line-height: 1.45;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+
+  *:focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.22);
+    color: hsl(var(--foreground));
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+  }
+}
+
+@layer components {
+  .app-surface {
+    @apply rounded-2xl border bg-card/95 backdrop-blur shadow-sm;
+    box-shadow:
+      0 1px 2px hsl(var(--foreground) / 0.03),
+      0 12px 32px hsl(var(--foreground) / 0.08);
   }
 }
 

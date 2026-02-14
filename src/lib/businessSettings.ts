@@ -17,6 +17,22 @@ const PaymentMethodSchema = z.object({
   enabled: z.boolean().default(true),
 });
 
+// Fiscal information schema
+const FiscalInfoSchema = z.object({
+  nif: z.string().default(''), // Tax ID
+  nic: z.string().default(''), // National ID
+  ait: z.string().default(''), // Professional Tax
+  rc: z.string().default(''),  // Commercial Register
+  artisan: z.string().default(''), // Artisan Number
+  activity: z.string().default(''), // Activity/Industry
+});
+
+const FiscalCustomInfoSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  value: z.string().default(''),
+});
+
 // Business settings schema
 const BusinessSettingsSchema = z.object({
   // Logo
@@ -42,6 +58,12 @@ const BusinessSettingsSchema = z.object({
   
   address: z.string().default(''),
   showAddress: z.boolean().default(true),
+  
+  // Fiscal information
+  fiscalInfo: FiscalInfoSchema.default({}),
+  clientFiscalInfo: FiscalInfoSchema.default({}),
+  businessCustomFiscalInfo: z.array(FiscalCustomInfoSchema).default([]),
+  clientCustomFiscalInfo: z.array(FiscalCustomInfoSchema).default([]),
   
   // Tax settings
   defaultTaxRate: z.number().default(0),
@@ -72,6 +94,8 @@ const ClientCustomFieldSchema = z.object({
 
 export type CustomField = z.infer<typeof CustomFieldSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
+export type FiscalInfo = z.infer<typeof FiscalInfoSchema>;
+export type FiscalCustomInfo = z.infer<typeof FiscalCustomInfoSchema>;
 export type BusinessSettings = z.infer<typeof BusinessSettingsSchema>;
 export type ClientCustomField = z.infer<typeof ClientCustomFieldSchema>;
 

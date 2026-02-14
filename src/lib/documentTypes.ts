@@ -37,6 +37,16 @@ const defaultDocumentTypes: DocumentType[] = [
     color: '#8b5cf6',
   },
   {
+    id: 'delivery_note',
+    name: 'Bon de livraison',
+    nameFr: 'Bon de livraison',
+    nameEn: 'Delivery Note',
+    prefix: 'BL',
+    isDefault: false,
+    isSystem: true,
+    color: '#10b981',
+  },
+  {
     id: 'proforma',
     name: 'Proforma',
     nameFr: 'Proforma',
